@@ -6,6 +6,7 @@ from .test_animals import _make_taxonomy, _create_animal
 
 _, _, animals_put, _, _ = route_client_factory(client, "animals")
 _, _, species_put, _, _ = route_client_factory(client, "species")
+_, morphs_post, morphs_put, _, _ = route_client_factory(client, "morphs")
 
 
 def test_public_list_no_auth_and_hides_private_fields(auth_headers):
@@ -99,3 +100,26 @@ def test_public_list_genus_filter(auth_headers):
     ).json()["data"]]
     assert animal["id"] in ids
     assert other_animal["id"] not in ids
+
+
+def test_show_public_es_administrativo_y_default_true(auth_headers):
+    """La bandera nace encendida, se puede apagar con un PUT parcial, y NO se
+    filtra al sitio publico dentro de la especie embebida en cada animal."""
+    _, _, _, sp, morph = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"], morph_ids=[morph["id"]])
+
+    # nace encendida en la respuesta de administracion
+    assert sp["show_public"] is True
+    assert morph["show_public"] is True
+
+    # se apaga con un PUT parcial, sin mandar el resto del objeto
+    res = species_put(f"/{sp['id']}", json={"show_public": False}, headers=auth_headers)
+    assert res.status_code == status.HTTP_200_OK, res.text
+    assert res.json()["show_public"] is False
+    # y no piso otros campos
+    assert res.json()["name"] == sp["name"]
+
+    # el sitio publico nunca ve el campo (la especie va embebida en el animal)
+    row = next(a for a in client.get("/api/v1/public/animals").json()["data"]
+               if a["id"] == animal["id"])
+    assert "show_public" not in row["species"]

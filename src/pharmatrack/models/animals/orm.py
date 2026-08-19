@@ -86,6 +86,11 @@ class Species(Base):
     diet: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Visible en el sitio publico. Independiente del inventario: una especie
+    # puede estar en cultivo y no anunciarse todavia. El grupo raiz manda por
+    # encima (si el grupo esta oculto, esto no la rescata).
+    show_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
+
     # === Manejo/cria (PRIVADO — nunca se expone en la API publica) ===
     # Estado de cria; low_stock_threshold NULL = usa el default global del panel
     husbandry_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
@@ -112,6 +117,10 @@ class Morph(Base):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Visible en el sitio publico, independiente de su especie: se puede
+    # esconder un morph suelto dejando el resto a la venta.
+    show_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
 
     # === Manejo/cria (PRIVADO — nunca se expone en la API publica) ===
     # El morph maneja su cria independiente del nominal (puede estar en cultivo

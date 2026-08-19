@@ -169,6 +169,7 @@ class SpeciesUpdate(BaseModel):
     habitat: Optional[DescriptionStr] = None
     diet: Optional[DescriptionStr] = None
     notes: Optional[DescriptionStr] = None
+    show_public: Optional[bool] = None
     # Manejo/cria (privado)
     husbandry_status: Optional[HusbandryStatusEnum] = None
     low_stock_threshold: Optional[int] = Field(None, ge=1)
@@ -198,6 +199,7 @@ class SpeciesAdminResponse(SpeciesResponse):
     husbandry_status: HusbandryStatusEnum = HusbandryStatusEnum.ACTIVE
     low_stock_threshold: Optional[int] = None
     private_notes: Optional[str] = None
+    show_public: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -224,6 +226,7 @@ class MorphUpdate(BaseModel):
     species_id: Optional[int] = Field(None, ge=1)
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[DescriptionStr] = None
+    show_public: Optional[bool] = None
     # Manejo/cria (privado) — el morph es independiente del nominal
     husbandry_status: Optional[HusbandryStatusEnum] = None
     low_stock_threshold: Optional[int] = Field(None, ge=1)
@@ -252,6 +255,7 @@ class MorphAdminResponse(MorphResponse):
     husbandry_status: HusbandryStatusEnum = HusbandryStatusEnum.ACTIVE
     low_stock_threshold: Optional[int] = None
     private_notes: Optional[str] = None
+    show_public: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 
