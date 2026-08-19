@@ -70,6 +70,7 @@ async def read_all(
     brand_id: int | None = None,
     category_id: int | None = None,
     is_active: bool | None = None,
+    show_online: bool | None = None,
     ordering: str | None = None,
     exclude_animal_twins: bool = False,
     only_bundles: bool = False,
@@ -99,6 +100,8 @@ async def read_all(
         query = query.filter(Product.product_category_id == category_id)
     if is_active is not None:
         query = query.filter(Product.is_active == is_active)
+    if show_online is not None:
+        query = query.filter(Product.show_online == show_online)
 
     order_clause = _ORDERING_MAP.get(ordering) if ordering else None
     if order_clause is None:
@@ -299,6 +302,27 @@ async def toggle_product_active(product_id: int, db: db_dependency):
     db.commit()
     db.refresh(product)
     logger.info("Product id=%s toggled is_active=%s", product_id, product.is_active)
+    return product
+
+
+# =========================================================
+# PATCH /{product_id}/toggle-online
+# =========================================================
+# Endpoint dedicado (no PUT): PUT reemplaza el producto entero, así que mandar
+# el objeto completo solo para voltear un booleano invita a pisar otros campos.
+@router.patch("/{product_id}/toggle-online",
+              response_model=ProductDetailsResponse,
+              summary="Toggle product visibility on the public site",
+              dependencies=CAN_UPDATE_PRODUCTS)
+async def toggle_product_online(product_id: int, db: db_dependency):
+    product = db.query(Product).filter(Product.id == product_id, Product.deleted_at.is_(None)).first()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
+
+    product.show_online = not product.show_online
+    db.commit()
+    db.refresh(product)
+    logger.info("Product id=%s toggled show_online=%s", product_id, product.show_online)
     return product
 
 

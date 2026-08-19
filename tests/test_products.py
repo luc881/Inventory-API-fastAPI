@@ -269,6 +269,34 @@ def test_list_search_no_match(auth_headers):
 
 
 # =========================================================
+# 🔹 GET /?show_online=  — filtro del listado base
+# =========================================================
+
+def test_list_filter_show_online_true(auth_headers, test_product, another_product, db_session):
+    test_product.show_online = True
+    another_product.show_online = False
+    db_session.commit()
+
+    response = product_get("", params={"show_online": "true"}, headers=auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    ids = [p["id"] for p in response.json()["data"]]
+    assert test_product.id in ids
+    assert another_product.id not in ids
+
+
+def test_list_filter_show_online_false(auth_headers, test_product, another_product, db_session):
+    test_product.show_online = True
+    another_product.show_online = False
+    db_session.commit()
+
+    response = product_get("", params={"show_online": "false"}, headers=auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    ids = [p["id"] for p in response.json()["data"]]
+    assert another_product.id in ids
+    assert test_product.id not in ids
+
+
+# =========================================================
 # 🔹 POST /
 # =========================================================
 
@@ -498,6 +526,49 @@ def test_patch_toggle_active_not_found(auth_headers):
 
 def test_patch_toggle_no_auth(test_product):
     response = product_patch(f"{test_product.id}/toggle-active")
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# =========================================================
+# 🔹 PATCH /{id}/toggle-online
+# =========================================================
+
+def test_patch_toggle_online(auth_headers, test_product):
+    original = test_product.show_online
+    response = product_patch(f"{test_product.id}/toggle-online", headers=auth_headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["show_online"] == (not original)
+
+
+def test_patch_toggle_online_twice_reverts(auth_headers, test_product):
+    original = test_product.show_online
+    product_patch(f"{test_product.id}/toggle-online", headers=auth_headers)
+    response = product_patch(f"{test_product.id}/toggle-online", headers=auth_headers)
+    assert response.json()["show_online"] == original
+
+
+def test_patch_toggle_online_only_touches_show_online(auth_headers, test_product):
+    original_is_active = test_product.is_active
+    original_title = test_product.title
+    original_price_retail = test_product.price_retail
+
+    response = product_patch(f"{test_product.id}/toggle-online", headers=auth_headers)
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["is_active"] == original_is_active
+    assert data["title"] == original_title
+    assert data["price_retail"] == original_price_retail
+
+
+def test_patch_toggle_online_not_found(auth_headers):
+    response = product_patch("999/toggle-online", headers=auth_headers)
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json()["detail"] == "Product not found."
+
+
+def test_patch_toggle_online_no_auth(test_product):
+    response = product_patch(f"{test_product.id}/toggle-online")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
