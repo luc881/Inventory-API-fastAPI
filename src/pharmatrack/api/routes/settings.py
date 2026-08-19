@@ -104,18 +104,50 @@ def test_email(body: TestEmailRequest, db: db_dependency):
 # =========================================================
 # Ajustes del sitio publico
 # =========================================================
+# Media del sitio publico. Cloudinary es la unica fuente: estos defaults son
+# las versiones sembradas, no archivos del repo (ver docs/superpowers/specs/
+# 2026-08-18-site-media-design.md). Agregar un slot aqui es un cambio de
+# diseno del sitio, por eso no hay slots dinamicos.
+SITE_MEDIA_DEFAULTS = {
+    "hero_video_mp4": "https://res.cloudinary.com/dnxavfqhj/video/upload/v1787115691/pukyu6z7wfkpqaifzmor.mp4",
+    "hero_video_webm": "https://res.cloudinary.com/dnxavfqhj/video/upload/v1787115692/jjzcsbb3u6nccqmydh9z.webm",
+    "hero_poster": "https://res.cloudinary.com/dnxavfqhj/image/upload/v1787115694/bbrlmcwkgjngvme9thzu.jpg",
+    "moss_tall": "https://res.cloudinary.com/dnxavfqhj/image/upload/v1787115695/bfqjr7t2tu5vrl0mdkhr.jpg",
+    "moss_wide": "https://res.cloudinary.com/dnxavfqhj/image/upload/v1787115697/no2ujblgtav0rjemgpix.jpg",
+    "leaf_litter": "https://res.cloudinary.com/dnxavfqhj/image/upload/v1787115698/rmkknlujheewmo2isf8l.jpg",
+    "terrarium": "https://res.cloudinary.com/dnxavfqhj/image/upload/v1787115699/acknugtzwqg7iecawvbu.jpg",
+    "isopod_zebra": "https://res.cloudinary.com/dnxavfqhj/image/upload/v1787115701/gjcseewc5tclvmflhkpt.png",
+    "isopod_cubaris": "https://res.cloudinary.com/dnxavfqhj/image/upload/v1787115702/ko1qxvsltrlgb2d6ltjd.png",
+}
+
 SITE_DEFAULTS = {
     "show_category_browse": True,  # seccion "Explora por grupo" en la home
     # Apagado: el sitio solo ofrece entrega personal en CDMX y la API rechaza
     # pedidos con envio (ver create_order en routes/shop.py)
     "shipping_enabled": True,
+    "media": SITE_MEDIA_DEFAULTS,
 }
 
 
 def get_site_settings(db) -> dict:
     row = db.query(AppSetting).filter(AppSetting.key == "site").first()
     stored = json.loads(row.value) if row else {}
-    return {**SITE_DEFAULTS, **stored}
+    # media se mezcla aparte: un slot guardado no debe esconder los defaults
+    # de los otros ocho.
+    media = {**SITE_MEDIA_DEFAULTS, **stored.get("media", {})}
+    return {**SITE_DEFAULTS, **stored, "media": media}
+
+
+class SiteMedia(BaseModel):
+    hero_video_mp4: Optional[str] = None
+    hero_video_webm: Optional[str] = None
+    hero_poster: Optional[str] = None
+    moss_tall: Optional[str] = None
+    moss_wide: Optional[str] = None
+    leaf_litter: Optional[str] = None
+    terrarium: Optional[str] = None
+    isopod_zebra: Optional[str] = None
+    isopod_cubaris: Optional[str] = None
 
 
 class SiteSettings(BaseModel):
@@ -124,6 +156,7 @@ class SiteSettings(BaseModel):
     # asi que tocar un ajuste reseteaba los demas.
     show_category_browse: Optional[bool] = None
     shipping_enabled: Optional[bool] = None
+    media: Optional[SiteMedia] = None
 
 
 # Lectura publica (sin auth): el sitio la consulta para armar la home
@@ -145,6 +178,14 @@ def update_site_settings(body: SiteSettings, db: db_dependency):
     # Si el cliente manda {"shipping_enabled": null}, Pydantic lo persiste.
     # Filtramos también los None: "null" significa "no cambiar", no "escribir null".
     patch = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
+
+    # media se mezcla un nivel mas adentro: mandar un slot no borra los otros
+    if "media" in patch:
+        patch["media"] = {
+            **stored.get("media", {}),
+            **{k: v for k, v in patch["media"].items() if v is not None},
+        }
+
     row.value = json.dumps({**stored, **patch})
     db.commit()
     return get_site_settings(db)
