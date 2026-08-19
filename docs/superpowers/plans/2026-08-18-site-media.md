@@ -1213,6 +1213,7 @@ salieron al leer el código: el fondo CSS del divisor 3D y el splash de carga.
 - Modify: `~/dev/pharmatrack-web/src/layouts/od/od-layout.jsx`
 - Modify: `~/dev/pharmatrack-web/src/layouts/od/od-divider-3d.jsx:31-40`
 - Modify: `~/dev/pharmatrack-web/src/sections/home/od/od-faq.jsx:55`
+- Modify: `~/dev/pharmatrack-web/src/sections/home/od/od-novedades.jsx:39`
 - Modify: `~/dev/pharmatrack-web/src/app/criadero/page.jsx:59-62`
 - Modify: `~/dev/pharmatrack-web/src/app/layout.jsx:65,91`
 - Modify: `~/dev/pharmatrack-web/src/components/loading-screen/site-splash.jsx:32`
@@ -1325,6 +1326,28 @@ export function OdDivider3d({ media }) {
 ```
 
 El resto del componente no cambia.
+
+- [ ] **Step 2b: Novedades**
+
+`src/sections/home/od/od-novedades.jsx:39` usa `/assets/redesign/moss-forest-2.jpg`
+como `backgroundImage` de CSS. **Este consumidor no estaba en el spec**: apareció
+al inspeccionar el HTML renderizado de la portada tras la Task 7. Sin este paso,
+borrar `public/assets/redesign/` deja la sección de Novedades sin fondo.
+
+Es cliente y lo renderiza `OdHomeView` (línea ~451), igual que `OdFaq`. Cambiar
+su firma a `export function OdNovedades({ mossWide })` y la línea 39:
+
+```jsx
+        <Box sx={{ position: 'absolute', inset: 0, zIndex: -2, backgroundImage: `url(${mossWide})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+```
+
+En `od-home-view.jsx`, localizar dónde se renderiza y pasarle la prop:
+
+```bash
+cd ~/dev/pharmatrack-web && grep -n "<OdNovedades" src/sections/home/od/od-home-view.jsx
+```
+
+Queda `<OdNovedades mossWide={IMG.mossWide} />`.
 
 - [ ] **Step 3: FAQ y El criadero**
 
