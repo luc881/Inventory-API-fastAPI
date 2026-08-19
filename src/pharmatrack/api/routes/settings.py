@@ -119,8 +119,11 @@ def get_site_settings(db) -> dict:
 
 
 class SiteSettings(BaseModel):
-    show_category_browse: bool = True
-    shipping_enabled: bool = True
+    # Todos opcionales: el PUT es parcial y solo escribe lo que llega.
+    # Sin esto, Pydantic rellenaba los ausentes con su default y los persistia,
+    # asi que tocar un ajuste reseteaba los demas.
+    show_category_browse: Optional[bool] = None
+    shipping_enabled: Optional[bool] = None
 
 
 # Lectura publica (sin auth): el sitio la consulta para armar la home
@@ -136,6 +139,9 @@ def update_site_settings(body: SiteSettings, db: db_dependency):
     if not row:
         row = AppSetting(key="site", value="{}")
         db.add(row)
-    row.value = json.dumps(body.model_dump())
+
+    stored = json.loads(row.value)
+    patch = body.model_dump(exclude_unset=True)
+    row.value = json.dumps({**stored, **patch})
     db.commit()
     return get_site_settings(db)
