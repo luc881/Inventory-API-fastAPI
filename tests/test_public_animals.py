@@ -119,7 +119,81 @@ def test_show_public_es_administrativo_y_default_true(auth_headers):
     # y no piso otros campos
     assert res.json()["name"] == sp["name"]
 
+    # la vuelvo a prender: aqui se prueba la fuga del campo, no el filtro de
+    # visibilidad (eso lo cubren los tests de mas abajo)
+    species_put(f"/{sp['id']}", json={"show_public": True}, headers=auth_headers)
+
     # el sitio publico nunca ve el campo (la especie va embebida en el animal)
     row = next(a for a in client.get("/api/v1/public/animals").json()["data"]
                if a["id"] == animal["id"])
     assert "show_public" not in row["species"]
+
+
+def test_especie_oculta_desaparece_del_listado_publico(auth_headers):
+    _, _, _, sp, _ = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"])
+
+    assert any(a["id"] == animal["id"] for a in client.get("/api/v1/public/animals").json()["data"])
+
+    species_put(f"/{sp['id']}", json={"show_public": False}, headers=auth_headers)
+
+    data = client.get("/api/v1/public/animals").json()["data"]
+    assert not any(a["id"] == animal["id"] for a in data)
+
+
+def test_morph_oculto_desaparece_del_listado_publico(auth_headers):
+    _, _, _, sp, morph = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"], morph_ids=[morph["id"]])
+
+    assert any(a["id"] == animal["id"] for a in client.get("/api/v1/public/animals").json()["data"])
+
+    morphs_put(f"/{morph['id']}", json={"show_public": False}, headers=auth_headers)
+
+    data = client.get("/api/v1/public/animals").json()["data"]
+    assert not any(a["id"] == animal["id"] for a in data)
+
+
+def test_un_morph_oculto_esconde_el_ejemplar_aunque_el_otro_sea_visible(auth_headers):
+    """Decision del spec: si un ejemplar lleva un morph oculto, sigue llevandolo,
+    asi que desaparece incluso de la tarjeta del morph visible. Esconder de mas
+    es correcto; esconder de menos deja fugas en la ficha."""
+    _, _, _, sp, morph_a = _make_taxonomy(auth_headers)
+    morph_b = morphs_post(json={"species_id": sp["id"], "name": "Rubber Ducky"},
+                          headers=auth_headers).json()
+    animal = _create_animal(auth_headers, sp["id"], morph_ids=[morph_a["id"], morph_b["id"]])
+
+    morphs_put(f"/{morph_a['id']}", json={"show_public": False}, headers=auth_headers)
+
+    data = client.get("/api/v1/public/animals").json()["data"]
+    assert not any(a["id"] == animal["id"] for a in data), \
+        "un ejemplar con un morph oculto no debe aparecer, ni por su otro morph"
+
+
+def test_enlace_directo_respeta_las_banderas(auth_headers):
+    """Sin esto hay fuga: el listado esconde pero la URL directa sigue sirviendo."""
+    _, _, _, sp, morph = _make_taxonomy(auth_headers)
+    a1 = _create_animal(auth_headers, sp["id"])
+    a2 = _create_animal(auth_headers, sp["id"], morph_ids=[morph["id"]])
+
+    assert client.get(f"/api/v1/public/animals/{a1['id']}").status_code == status.HTTP_200_OK
+
+    species_put(f"/{sp['id']}", json={"show_public": False}, headers=auth_headers)
+    assert client.get(f"/api/v1/public/animals/{a1['id']}").status_code == status.HTTP_404_NOT_FOUND
+
+    species_put(f"/{sp['id']}", json={"show_public": True}, headers=auth_headers)
+    morphs_put(f"/{morph['id']}", json={"show_public": False}, headers=auth_headers)
+    assert client.get(f"/api/v1/public/animals/{a2['id']}").status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_el_listado_admin_sigue_viendo_lo_oculto(auth_headers):
+    """El filtro es opt-in. Si se aplicara siempre, las especies ocultas
+    desapareceran del dashboard y nadie podria volver a publicarlas."""
+    _, _, _, sp, morph = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"], morph_ids=[morph["id"]])
+
+    species_put(f"/{sp['id']}", json={"show_public": False}, headers=auth_headers)
+    morphs_put(f"/{morph['id']}", json={"show_public": False}, headers=auth_headers)
+
+    data = client.get("/api/v1/animals", headers=auth_headers).json()["data"]
+    assert any(a["id"] == animal["id"] for a in data), \
+        "el listado admin debe seguir mostrando los taxones ocultos"

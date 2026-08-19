@@ -49,6 +49,7 @@ async def public_list_animals(
     query = _animals_query(
         db, species_id=species_id, genus_id=genus_id, group_id=group_id,
         animal_status=AnimalStatusEnum.AVAILABLE, exclude_group_ids=hidden_group_ids(db),
+        exclude_hidden_taxa=True,
     )
     return paginate(query, pagination)
 
@@ -63,5 +64,13 @@ async def public_get_animal(animal_id: int, db: db_dependency):
     # pero un link directo no debe seguir mostrando el animal)
     group_id = animal.species.genus.group_id if animal.species and animal.species.genus else None
     if group_id is not None and group_id in hidden_group_ids(db):
+        raise HTTPException(status_code=404, detail="Animal not found.")
+    # Mismas reglas que el listado: si el listado lo esconde, el enlace directo
+    # tampoco debe servirlo. El status SI se conserva permisivo a proposito
+    # (reservados y vendidos responden, para que un link compartido diga "ya no
+    # disponible" en vez de 404).
+    if animal.species and not animal.species.show_public:
+        raise HTTPException(status_code=404, detail="Animal not found.")
+    if any(not m.show_public for m in (animal.morphs or [])):
         raise HTTPException(status_code=404, detail="Animal not found.")
     return animal

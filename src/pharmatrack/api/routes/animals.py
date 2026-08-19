@@ -98,7 +98,8 @@ def _validate_stock(species: Species, stock: int):
 # GET /
 # =========================================================
 def _animals_query(db, species_id=None, genus_id=None, group_id=None,
-                   animal_status=None, exclude_group_ids=None):
+                   animal_status=None, exclude_group_ids=None,
+                   exclude_hidden_taxa=False):
     query = _query_with_relations(db)
     if species_id is not None:
         query = query.filter(Animal.species_id == species_id)
@@ -118,6 +119,20 @@ def _animals_query(db, species_id=None, genus_id=None, group_id=None,
         hidden_genus_ids = db.query(Genus.id).filter(Genus.group_id.in_(exclude_group_ids))
         hidden_species_ids = db.query(Species.id).filter(Species.genus_id.in_(hidden_genus_ids))
         query = query.filter(~Animal.species_id.in_(hidden_species_ids))
+    # Opt-in a proposito: esta query la comparten el listado admin y el publico.
+    # Si el filtro se aplicara siempre, una especie oculta desapareceria tambien
+    # del dashboard y nadie podria volver a publicarla.
+    if exclude_hidden_taxa:
+        query = query.filter(
+            Animal.species_id.in_(db.query(Species.id).filter(Species.show_public.is_(True)))
+        )
+        # Un ejemplar puede llevar varios morphs: si CUALQUIERA esta oculto, el
+        # ejemplar se esconde. Sigue llevando ese morph, asi que su ficha lo
+        # mostraria; esconder de menos seria la fuga.
+        hidden_morph_ids = db.query(Morph.id).filter(Morph.show_public.is_(False))
+        query = query.filter(
+            ~Animal.morphs.any(Morph.id.in_(hidden_morph_ids))
+        )
     if animal_status is not None:
         query = query.filter(Animal.status == animal_status.value)
     return query.order_by(Animal.id.desc())
