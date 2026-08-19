@@ -141,7 +141,10 @@ def update_site_settings(body: SiteSettings, db: db_dependency):
         db.add(row)
 
     stored = json.loads(row.value)
-    patch = body.model_dump(exclude_unset=True)
+    # exclude_unset=True filtra campos ausentes, pero no un null explícito.
+    # Si el cliente manda {"shipping_enabled": null}, Pydantic lo persiste.
+    # Filtramos también los None: "null" significa "no cambiar", no "escribir null".
+    patch = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
     row.value = json.dumps({**stored, **patch})
     db.commit()
     return get_site_settings(db)
