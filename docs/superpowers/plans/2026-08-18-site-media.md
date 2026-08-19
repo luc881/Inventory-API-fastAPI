@@ -851,8 +851,6 @@ export function SiteMediaView() {
 // ----------------------------------------------------------------------
 
 function SlotCard({ slot, src, busy, disabled, onPick }) {
-  const inputId = `slot-${slot.key}`;
-
   return (
     <Card sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       <Box
@@ -884,15 +882,15 @@ function SlotCard({ slot, src, busy, disabled, onPick }) {
 
       <Button
         component="label"
-        htmlFor={inputId}
         variant="outlined"
         size="small"
         disabled={disabled}
         startIcon={<Iconify icon={busy ? 'eos-icons:loading' : 'solar:upload-bold'} width={16} />}
       >
         {busy ? 'Subiendo…' : 'Reemplazar'}
+        {/* El input va anidado y SIN htmlFor: un label que ademas contiene al
+            input dispara el click dos veces si encima lo apunta por id. */}
         <Box
-          id={inputId}
           component="input"
           type="file"
           accept={slot.type === 'video' ? 'video/*' : 'image/*'}
@@ -1163,7 +1161,19 @@ En el bloque del hero (líneas 125-137), sustituir las rutas fijas:
           <source src={media.hero_video_mp4} type="video/mp4" />
 ```
 
-- [ ] **Step 5: Lint y build**
+- [ ] **Step 5: Verificar que no quedaron URLs vacías**
+
+El backend tiene un test que falla si los defaults quedan en blanco; aquí no hay
+red. Comprobar a mano:
+
+```bash
+cd ~/dev/pharmatrack-web && grep -n "': ''," src/lib/public-api.js
+```
+
+Esperado: **sin resultados**. Si aparece alguno, faltó pegar las URLs de la
+Task 1.
+
+- [ ] **Step 6: Lint y build**
 
 ```bash
 cd ~/dev/pharmatrack-web && corepack yarn lint:fix && corepack yarn build
@@ -1173,7 +1183,7 @@ Esperado: build en verde. Si falla por `IMG is not defined`, quedó un uso de
 `IMG.` fuera del componente: buscarlo con
 `grep -n "IMG\." src/sections/home/od/od-home-view.jsx`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 cd ~/dev/pharmatrack-web
@@ -1206,11 +1216,52 @@ salieron al leer el código: el fondo CSS del divisor 3D y el splash de carga.
 - Modify: `~/dev/pharmatrack-web/src/app/criadero/page.jsx:59-62`
 - Modify: `~/dev/pharmatrack-web/src/app/layout.jsx:65,91`
 - Modify: `~/dev/pharmatrack-web/src/components/loading-screen/site-splash.jsx:32`
+- Modify: `~/dev/pharmatrack-web/src/sections/error/not-found-view.jsx:11,20,42`
+- Modify: `~/dev/pharmatrack-web/src/app/not-found.jsx`
 - Delete: `~/dev/pharmatrack-web/public/video/`, `~/dev/pharmatrack-web/public/assets/redesign/`
 
 **Interfaces:**
 - Consumes: `media` (Task 3), `getSiteSettings()` (Task 7).
 - Produces: nada; es la última task.
+
+- [ ] **Step 0: Sacar `OdLayout` del componente cliente del 404**
+
+**Hacer esto ANTES de volver async a `OdLayout`.** `src/sections/error/not-found-view.jsx`
+es `'use client'` (línea 1) y renderiza `<OdLayout offsetTop subscribe={false}>`
+(línea 20). Un componente cliente no puede renderizar un server component async,
+así que el Step 1 rompería `/not-found` si no se arregla antes.
+
+El layout se mueve a la ruta, que es server, como hacen las otras 16 páginas.
+`offsetTop` y `subscribe` se van: son props muertas que ya no gobiernan nada
+(ver el comentario en `od-layout.jsx`).
+
+En `src/sections/error/not-found-view.jsx`: borrar el import de `OdLayout`
+(línea 11) y las etiquetas `<OdLayout …>` / `</OdLayout>` (líneas 20 y 42),
+dejando su contenido como raíz del componente.
+
+En `src/app/not-found.jsx`:
+
+```jsx
+import { CONFIG } from 'src/global-config';
+import { OdLayout } from 'src/layouts/od/od-layout';
+
+import { NotFoundView } from 'src/sections/error';
+
+// ----------------------------------------------------------------------
+
+export const metadata = { title: `404 page not found! | Error - ${CONFIG.appName}` };
+
+// El layout vive en la ruta (server component) y no dentro de NotFoundView,
+// que es cliente: OdLayout es async y un componente cliente no puede
+// renderizar un server component async.
+export default function Page() {
+  return (
+    <OdLayout>
+      <NotFoundView />
+    </OdLayout>
+  );
+}
+```
 
 - [ ] **Step 1: `OdLayout` hace el fetch y reparte**
 
@@ -1284,7 +1335,14 @@ su firma a `export function OdFaq({ mossTall })` y la línea 55:
               <OdScene scene="log" fallbackSrc={mossTall} fallbackLabel="Tronco con musgo" ratio="3 / 5" />
 ```
 
-En `od-home-view.jsx` línea 447, donde se renderiza: `<OdFaq mossTall={IMG.mossTall} />`.
+En `od-home-view.jsx`, donde se renderiza. **Localizarlo por búsqueda, no por
+número de línea** — la Task 7 editó este mismo archivo y desplazó las líneas:
+
+```bash
+cd ~/dev/pharmatrack-web && grep -n "<OdFaq" src/sections/home/od/od-home-view.jsx
+```
+
+Cambiar `<OdFaq />` por `<OdFaq mossTall={IMG.mossTall} />`.
 
 `src/app/criadero/page.jsx` tiene **cuatro** referencias, no una: el array
 `PHOTOS` (líneas 18-22) usa tres imágenes y el `fallbackSrc` de la línea 61 usa
@@ -1359,7 +1417,18 @@ cd ~/dev/pharmatrack-web && grep -rn "/video/hero-moss\|/assets/redesign/" src/
 ```
 
 Esperado: **sin resultados**. Si aparece alguno, arreglarlo antes de borrar
-nada.
+nada. Este paso va antes del borrado a propósito: un 404 de imagen no rompe el
+build, así que el build por sí solo no detectaría una referencia huérfana.
+
+Verificar también que ningún componente cliente renderiza `OdLayout`, que ahora
+es async:
+
+```bash
+cd ~/dev/pharmatrack-web && grep -rln "OdLayout" src/ | xargs grep -l "use client"
+```
+
+Esperado: **sin resultados** (tras el Step 0). Si aparece alguno, hay que
+sacarle el `OdLayout` igual que se hizo con el 404.
 
 - [ ] **Step 6: Borrar los archivos**
 
@@ -1383,8 +1452,12 @@ cd ~/dev/pharmatrack-web && corepack yarn dev
 ```
 
 Abrir la portada y confirmar: el video del hero se reproduce, las seis imágenes
-decorativas cargan, y una vista interior (p. ej. `/carrito` no, que desactiva el
-divisor — usar `/criadero`) muestra el divisor 3D con su fondo.
+decorativas cargan, y una vista interior (`/criadero`; `/carrito` no sirve
+porque desactiva el divisor) muestra el divisor 3D con su fondo.
+
+Abrir también una URL inexistente (p. ej. `/no-existe`) y confirmar que el 404
+renderiza con su layout, sin error de servidor. Es la ruta que el Step 0
+reacomodó.
 
 - [ ] **Step 9: Commit**
 
