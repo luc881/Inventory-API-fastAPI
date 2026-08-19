@@ -10,7 +10,7 @@ from ...db.session import db_dependency
 from ...models.app_settings.orm import AppSetting
 from ...config import settings
 from ...utils.email import send_test_email, send_sample_order_emails
-from ...utils.permissions import CAN_READ_SALES, CAN_UPDATE_SALES, CAN_UPDATE_ANIMAL_GROUPS
+from ...utils.permissions import CAN_READ_SALES, CAN_UPDATE_SALES, CAN_UPDATE_SETTINGS
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -165,7 +165,7 @@ def read_site_settings(db: db_dependency):
     return get_site_settings(db)
 
 
-@router.put("/site", dependencies=CAN_UPDATE_ANIMAL_GROUPS,
+@router.put("/site", dependencies=CAN_UPDATE_SETTINGS,
             summary="Guardar ajustes del sitio")
 def update_site_settings(body: SiteSettings, db: db_dependency):
     row = db.query(AppSetting).filter(AppSetting.key == "site").first()

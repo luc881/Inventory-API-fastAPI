@@ -60,3 +60,19 @@ def test_actualizar_un_slot_no_borra_los_demas(auth_headers):
     assert despues["terrarium"] == "https://example.com/nuevo.jpg"
     assert despues["moss_tall"] == antes["moss_tall"], "el PUT borro otro slot"
     assert len(despues) == 9
+
+
+def test_escribir_ajustes_exige_permiso_de_settings(auth_headers, db_session):
+    """El rol de pruebas trae toda la lista del seed. Si settings.update no
+    esta en esa lista, este PUT devuelve 403."""
+    from pharmatrack.seeds.seed_permissions import PERMISSIONS
+    assert "settings.update" in PERMISSIONS
+
+    res = client.put("/api/v1/settings/site",
+                     json={"shipping_enabled": True}, headers=auth_headers)
+    assert res.status_code == 200, res.text
+
+
+def test_escribir_ajustes_sin_token_es_rechazado():
+    res = client.put("/api/v1/settings/site", json={"shipping_enabled": True})
+    assert res.status_code in (401, 403)

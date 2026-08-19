@@ -106,6 +106,9 @@ PERMISSIONS = [
 
     # Pedidos del sitio publico
     "orders.read", "orders.create", "orders.update", "orders.delete",
+
+    # Ajustes del sitio publico (media, switches de la home)
+    "settings.read", "settings.create", "settings.update", "settings.delete",
 ]
 
 
