@@ -95,9 +95,11 @@ La marca aparece en las tres superficies, con el mismo texto:
 - **Dashboard → Taxonomía**, pestaña Especies.
 - **Dashboard → Sitio web → Animales**, nivel Especies.
 
-**Solo se marca cuando la especie tiene al menos un morph.** En una especie sin
-variantes no hay nada de qué distinguirla, y la etiqueta sería ruido en las 18
-especies que hoy no tienen morphs.
+**Se marca siempre, tenga morphs o no.** "Nominal" no es una comparación con
+las variantes: es lo que esa tarjeta *es*, la forma base de la especie.
+Mostrarla solo a veces la convertiría en una etiqueta condicional en vez de una
+identidad, y el dueño tendría que deducir el tipo de tarjeta a partir de si
+existen hermanas.
 
 ### El precio sale de `price_tiers` cuando no hay ejemplares
 
@@ -180,8 +182,8 @@ Backend:
    oculto (en cascada) no aparecen.
 3. **No** expone `show_public` ni campos privados de cría.
 
-4. Una especie con morphs y otra sin morphs, para verificar en el sitio que la
-   marca "Nominal" aparece solo en la primera.
+4. Una especie con morphs y otra sin morphs: la marca "Nominal" aparece en la
+   tarjeta base de **ambas**, y nunca en la de un morph.
 
 Sitio y dashboard: lint, build y verificación en vivo del catálogo, que no
 requiere sesión. La marca "Nominal" se comprueba en el catálogo público; en
