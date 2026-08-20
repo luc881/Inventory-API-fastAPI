@@ -30,7 +30,9 @@ catálogo empezara a listarlas, saldrían 37 tarjetas sin foto.
 3. El catálogo del sitio pasa a armarse **por taxón**, adjuntándole sus
    ejemplares, en vez de derivarse de ellos.
 4. Banda de "Agotado" en la esquina de la tarjeta, visible y roja.
-5. Subida de esa imagen desde el dashboard.
+5. Marca "Nominal" en la especie base, en el sitio y en las dos pantallas
+   del dashboard que listan especies.
+6. Subida de esa imagen desde el dashboard.
 
 **Fuera de alcance:**
 
@@ -69,6 +71,33 @@ visibles** y adjuntarles los ejemplares que les correspondan.
 Consecuencia buscada: un taxón sin ejemplares produce una entrada con `count: 0`
 y por lo tanto cae en el camino "Agotado" que `animalToCard` **ya implementa**
 (`soldOut = i.count === 0`). No hace falta un estado nuevo.
+
+### Una tarjeta por taxón visible, y la nominal se marca "Nominal"
+
+Cada fila que el dueño ve en el dashboard se convierte en una tarjeta: la
+especie y cada uno de sus morphs. Si no vende la forma nominal, la apaga con su
+interruptor y desaparece del sitio. Así el dashboard y el catálogo se
+corresponden uno a uno, y el control queda en manos del dueño en vez de
+depender de si existe un ejemplar sin morph asignado.
+
+Esto **ya es el comportamiento del sitio para los morphs**: `buildListings`
+agrupa por `(especie, primer morph)`, así que cada morph ya es su propia
+tarjeta con su propia URL. Lo que cambia es que ahora también existirán las
+tarjetas sin ejemplares detrás.
+
+**La tarjeta de la especie a secas se marca como "Nominal"**, para distinguir la
+forma base de sus variantes. Sin esa marca, "Laevis" y "Laevis 'Dairy Cow'" se
+leen como si la primera fuera un resumen de la segunda.
+
+La marca aparece en las tres superficies, con el mismo texto:
+
+- **Sitio público:** en la tarjeta del catálogo y en la ficha.
+- **Dashboard → Taxonomía**, pestaña Especies.
+- **Dashboard → Sitio web → Animales**, nivel Especies.
+
+**Solo se marca cuando la especie tiene al menos un morph.** En una especie sin
+variantes no hay nada de qué distinguirla, y la etiqueta sería ruido en las 18
+especies que hoy no tienen morphs.
 
 ### El precio sale de `price_tiers` cuando no hay ejemplares
 
@@ -151,8 +180,12 @@ Backend:
    oculto (en cascada) no aparecen.
 3. **No** expone `show_public` ni campos privados de cría.
 
+4. Una especie con morphs y otra sin morphs, para verificar en el sitio que la
+   marca "Nominal" aparece solo en la primera.
+
 Sitio y dashboard: lint, build y verificación en vivo del catálogo, que no
-requiere sesión.
+requiere sesión. La marca "Nominal" se comprueba en el catálogo público; en
+las dos pantallas del dashboard queda pendiente del acceso del dueño.
 
 ## Riesgos
 
