@@ -42,13 +42,18 @@ async def public_list_animals(
     species_id: Optional[int] = None,
     genus_id: Optional[int] = None,
     group_id: Optional[int] = None,
+    include_unavailable: bool = False,
     pagination: PaginationParams = Depends(),
 ):
     # ponytail: reutiliza el armado de query interno; response_model recorta lo
-    # privado y exclude_group_ids esconde los grupos marcados como no publicos
+    # privado y exclude_group_ids esconde los grupos marcados como no publicos.
+    # Opt-in a proposito (mismo patron que exclude_hidden_taxa en animals.py):
+    # sin el parametro nada cambia, asi que el sitio puede pedirlo cuando este
+    # listo sin que el backend rompa a nadie mas mientras tanto.
     query = _animals_query(
         db, species_id=species_id, genus_id=genus_id, group_id=group_id,
-        animal_status=AnimalStatusEnum.AVAILABLE, exclude_group_ids=hidden_group_ids(db),
+        animal_status=None if include_unavailable else AnimalStatusEnum.AVAILABLE,
+        exclude_group_ids=hidden_group_ids(db),
         exclude_hidden_taxa=True,
     )
     return paginate(query, pagination)

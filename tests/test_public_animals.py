@@ -3,6 +3,7 @@ from fastapi import status
 
 from .utils import client, route_client_factory
 from .test_animals import _make_taxonomy, _create_animal
+from pharmatrack.models.animals.orm import Animal
 
 _, _, animals_put, _, _ = route_client_factory(client, "animals")
 _, _, species_put, _, _ = route_client_factory(client, "species")
@@ -39,6 +40,44 @@ def test_public_list_only_available_but_detail_keeps_shared_links(auth_headers):
     detail = client.get(f"/api/v1/public/animals/{animal['id']}")
     assert detail.status_code == status.HTTP_200_OK
     assert detail.json()["status"] == "reserved"
+
+
+def _mark_sold(db_session, animal_id):
+    # "sold" no se puede poner vía PUT (lo asigna el flujo de venta), así que
+    # para estos tests se escribe directo en la sesión que comparte el TestClient.
+    db_session.query(Animal).filter(Animal.id == animal_id).update({"status": "sold"})
+    db_session.commit()
+
+
+def test_public_list_default_excludes_sold(auth_headers, db_session):
+    _, _, _, sp, _ = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"])
+    _mark_sold(db_session, animal["id"])
+
+    data = client.get("/api/v1/public/animals").json()["data"]
+    assert all(a["id"] != animal["id"] for a in data)
+
+
+def test_public_list_include_unavailable_shows_sold_with_status(auth_headers, db_session):
+    _, _, _, sp, _ = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"])
+    _mark_sold(db_session, animal["id"])
+
+    data = client.get("/api/v1/public/animals", params={"include_unavailable": "true"}).json()["data"]
+    row = next(a for a in data if a["id"] == animal["id"])
+    assert row["status"] == "sold"
+
+
+def test_public_list_include_unavailable_no_salta_especie_oculta(auth_headers, db_session):
+    """El parametro relaja disponibilidad, no privacidad: una especie oculta
+    sigue sin aparecer aunque el ejemplar este vendido y se pida include_unavailable."""
+    _, _, _, sp, _ = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"])
+    _mark_sold(db_session, animal["id"])
+    species_put(f"/{sp['id']}", json={"show_public": False}, headers=auth_headers)
+
+    data = client.get("/api/v1/public/animals", params={"include_unavailable": "true"}).json()["data"]
+    assert all(a["id"] != animal["id"] for a in data)
 
 
 def test_public_species_care_info_roundtrip(auth_headers):
