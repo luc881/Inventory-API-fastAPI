@@ -36,7 +36,13 @@ async def public_list_species(db: db_dependency):
 
     query = (
         db.query(Species)
-        .options(joinedload(Species.genus), selectinload(Species.morphs))
+        .options(
+            # PublicSpeciesResponse anida genus -> group (GenusResponse trae
+            # AnimalGroupResponse); sin cargar hasta group, Pydantic dispara
+            # una consulta perezosa por cada genero distinto al serializar.
+            joinedload(Species.genus).joinedload(Genus.group),
+            selectinload(Species.morphs),
+        )
         .filter(Species.show_public.is_(True))
     )
     if hidden:
