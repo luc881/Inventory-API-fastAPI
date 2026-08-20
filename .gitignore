@@ -78,3 +78,6 @@ Thumbs.db
 backups/
 image_cache/
 scripts/.env.sync
+
+# Scratch de ejecucion de planes (superpowers): no es codigo
+.superpowers/
