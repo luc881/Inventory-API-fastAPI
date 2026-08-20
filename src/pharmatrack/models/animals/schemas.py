@@ -126,6 +126,7 @@ class SpeciesBase(BaseModel):
     habitat: Optional[DescriptionStr] = None
     diet: Optional[DescriptionStr] = None
     notes: Optional[DescriptionStr] = None
+    image: Optional[str] = Field(None, max_length=250)
 
     @field_validator("name", "common_name", mode="before")
     @classmethod
@@ -169,6 +170,7 @@ class SpeciesUpdate(BaseModel):
     habitat: Optional[DescriptionStr] = None
     diet: Optional[DescriptionStr] = None
     notes: Optional[DescriptionStr] = None
+    image: Optional[str] = Field(None, max_length=250)
     show_public: Optional[bool] = None
     # Manejo/cria (privado)
     husbandry_status: Optional[HusbandryStatusEnum] = None
@@ -211,6 +213,7 @@ class MorphBase(BaseModel):
     species_id: int = Field(..., ge=1)
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[DescriptionStr] = None
+    image: Optional[str] = Field(None, max_length=250)
 
     @field_validator("name")
     @classmethod
@@ -226,6 +229,7 @@ class MorphUpdate(BaseModel):
     species_id: Optional[int] = Field(None, ge=1)
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[DescriptionStr] = None
+    image: Optional[str] = Field(None, max_length=250)
     show_public: Optional[bool] = None
     # Manejo/cria (privado) — el morph es independiente del nominal
     husbandry_status: Optional[HusbandryStatusEnum] = None

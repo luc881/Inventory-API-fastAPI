@@ -236,3 +236,25 @@ def test_el_listado_admin_sigue_viendo_lo_oculto(auth_headers):
     data = client.get("/api/v1/animals", headers=auth_headers).json()["data"]
     assert any(a["id"] == animal["id"] for a in data), \
         "el listado admin debe seguir mostrando los taxones ocultos"
+
+
+def test_image_de_taxon_es_publica(auth_headers):
+    """A diferencia de show_public, la imagen del taxon SI viaja al sitio:
+    es la foto de la tarjeta cuando la especie no tiene ejemplares."""
+    _, _, _, sp, morph = _make_taxonomy(auth_headers)
+    animal = _create_animal(auth_headers, sp["id"], morph_ids=[morph["id"]])
+
+    url = "https://res.cloudinary.com/demo/image/upload/v1/especie.jpg"
+    res = species_put(f"/{sp['id']}", json={"image": url}, headers=auth_headers)
+    assert res.status_code == status.HTTP_200_OK, res.text
+    assert res.json()["image"] == url
+    assert res.json()["name"] == sp["name"], "el PUT parcial no debe pisar otros campos"
+
+    murl = "https://res.cloudinary.com/demo/image/upload/v1/morph.jpg"
+    assert morphs_put(f"/{morph['id']}", json={"image": murl},
+                      headers=auth_headers).status_code == status.HTTP_200_OK
+
+    row = next(a for a in client.get("/api/v1/public/animals").json()["data"]
+               if a["id"] == animal["id"])
+    assert row["species"]["image"] == url
+    assert row["morphs"][0]["image"] == murl

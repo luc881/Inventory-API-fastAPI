@@ -91,6 +91,10 @@ class Species(Base):
     # encima (si el grupo esta oculto, esto no la rescata).
     show_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
 
+    # Foto del taxon para la tarjeta del catalogo. Las fotos "reales" cuelgan
+    # del ejemplar; esta es la que se usa cuando la especie no tiene ninguno.
+    image: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
+
     # === Manejo/cria (PRIVADO — nunca se expone en la API publica) ===
     # Estado de cria; low_stock_threshold NULL = usa el default global del panel
     husbandry_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
@@ -121,6 +125,10 @@ class Morph(Base):
     # Visible en el sitio publico, independiente de su especie: se puede
     # esconder un morph suelto dejando el resto a la venta.
     show_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
+
+    # Foto propia del morph: sin ella, todos los morphs de una especie
+    # compartirian imagen y se perderia justo lo que los distingue.
+    image: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
 
     # === Manejo/cria (PRIVADO — nunca se expone en la API publica) ===
     # El morph maneja su cria independiente del nominal (puede estar en cultivo
